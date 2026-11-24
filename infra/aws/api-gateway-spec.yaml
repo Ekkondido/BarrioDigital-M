@@ -1,0 +1,35 @@
+openapi: "3.0.1"
+info:
+  title: "BarrioDigital API Gateway"
+  description: "AWS API Gateway HTTP API con JWT Authorizer conectado a Azure Entra ID"
+  version: "1.0.0"
+
+paths:
+  /api/{proxy+}:
+    x-amazon-apigateway-any-method:
+      parameters:
+        - name: "proxy"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      security:
+        - AzureADAuthorizer: []
+      x-amazon-apigateway-integration:
+        payloadFormatVersion: "1.0"
+        type: "http_proxy"
+        httpMethod: "ANY"
+        uri: "http://${stageVariables.backendHost}:8080/{proxy}"
+        connectionType: "INTERNET"
+
+components:
+  securitySchemes:
+    AzureADAuthorizer:
+      type: "oauth2"
+      x-amazon-apigateway-authorizer:
+        type: "jwt"
+        identitySource: "$request.header.Authorization"
+        jwtConfiguration:
+          audience:
+            - "api://00000000-0000-0000-0000-000000000000"
+          issuer: "https://login.microsoftonline.com/common/v2.0"

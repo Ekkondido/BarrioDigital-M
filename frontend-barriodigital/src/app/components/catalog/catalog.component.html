@@ -1,0 +1,85 @@
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2>Catálogo de Trámites y Cupos Diarios</h2>
+      <p class="subtitle">Administración de capacidades operativas comunales. El cupo disminuye automáticamente al admitir cada solicitud.</p>
+    </div>
+    <div>
+      <button class="btn btn-primary" (click)="openCreateModal()" *ngIf="authService.hasRole('Admin')">
+        <span>➕</span> Crear Nuevo Trámite
+      </button>
+    </div>
+  </div>
+
+  <div class="cards-grid">
+    <div class="proc-card" *ngFor="let proc of procedures">
+      <div class="proc-header">
+        <span class="proc-code">{{ proc.code }}</span>
+        <button class="edit-link" *ngIf="authService.hasRole('Admin')" (click)="openEditModal(proc)">Editar</button>
+      </div>
+
+      <h3 class="proc-title">{{ proc.name }}</h3>
+      <p class="proc-desc">{{ proc.description }}</p>
+
+      <div class="quota-box">
+        <div class="quota-numbers">
+          <span>Cupos Disponibles Hoy:</span>
+          <strong>{{ proc.availableQuota }} / {{ proc.dailyQuota }}</strong>
+        </div>
+        <div class="progress-bg">
+          <div class="progress-fill" 
+               [style.width.%]="(proc.availableQuota / proc.dailyQuota) * 100"
+               [ngClass]="{
+                 'bar-low': (proc.availableQuota / proc.dailyQuota) < 0.3,
+                 'bar-medium': (proc.availableQuota / proc.dailyQuota) >= 0.3 && (proc.availableQuota / proc.dailyQuota) < 0.7,
+                 'bar-good': (proc.availableQuota / proc.dailyQuota) >= 0.7
+               }">
+          </div>
+        </div>
+      </div>
+
+      <div class="requirements-box">
+        <span class="req-title">Requisitos exigidos:</span>
+        <p class="req-text">{{ proc.requirements || 'Sin requisitos especiales' }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear/Editar Trámite -->
+<div class="modal-overlay" *ngIf="showModal">
+  <div class="modal-content">
+    <h3>{{ isEditing ? 'Editar Trámite Comunal' : 'Nuevo Trámite en Catálogo' }}</h3>
+    <p class="modal-sub">Define la capacidad de atención y los requisitos para el vecino.</p>
+
+    <div class="form-group">
+      <label>Código Identificador:</label>
+      <input type="text" class="form-control" [(ngModel)]="formData.code" placeholder="Ej: PODA_ARBOLES" [disabled]="isEditing" />
+    </div>
+
+    <div class="form-group">
+      <label>Nombre del Trámite:</label>
+      <input type="text" class="form-control" [(ngModel)]="formData.name" placeholder="Ej: Retiro de Escombros y Enseres" />
+    </div>
+
+    <div class="form-group">
+      <label>Descripción del Servicio:</label>
+      <textarea rows="2" class="form-control" [(ngModel)]="formData.description" placeholder="Explicación clara para el vecino..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Cupo Diario Máximo de Atención:</label>
+      <input type="number" class="form-control" [(ngModel)]="formData.dailyQuota" min="1" max="100" />
+    </div>
+
+    <div class="form-group">
+      <label>Requisitos Exigidos al Vecino:</label>
+      <textarea rows="2" class="form-control" [(ngModel)]="formData.requirements" placeholder="Ej: Cédula de identidad, foto del árbol, dirección exacta..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" (click)="showModal = false">Cancelar</button>
+      <button class="btn btn-primary" (click)="saveProcedure()">Guardar en Catálogo</button>
+    </div>
+  </div>
+</div>

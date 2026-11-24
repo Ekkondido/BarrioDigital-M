@@ -1,0 +1,145 @@
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2>Administración y Monitoreo RabbitMQ</h2>
+      <p class="subtitle">Evaluación Parcial N° 3: Gestión dinámica de colas, exchanges, bindings y trazabilidad de Dead Letter Queues (DLQ).</p>
+    </div>
+    <div>
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span>➕</span> Crear Nueva Cola
+      </button>
+    </div>
+  </div>
+
+  <!-- Panel de Pruebas en Vivo de Mensajería y DLQ -->
+  <div class="card test-box">
+    <div class="test-header">
+      <span class="icon">🧪</span>
+      <div>
+        <h4>Laboratorio de Pruebas RabbitMQ (ACK / NACK / DLQ)</h4>
+        <p class="text-muted">Publica mensajes a las colas y simula fallos para verificar el desvío automático hacia la DLQ en tiempo real.</p>
+      </div>
+    </div>
+
+    <div class="test-body">
+      <div class="test-form-row">
+        <div class="form-group flex-1">
+          <label>Exchange:</label>
+          <input type="text" class="form-control" [(ngModel)]="testExchange" />
+        </div>
+        <div class="form-group flex-1">
+          <label>Routing Key:</label>
+          <select class="form-control" [(ngModel)]="testRoutingKey">
+            <option value="email.send">email.send &rarr; q.cmd.email (Vecino)</option>
+            <option value="crew.ticket">crew.ticket &rarr; q.cmd.crew (Cuadrilla)</option>
+            <option value="certificate.gen">certificate.gen &rarr; q.cmd.certificate (PDF)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Payload JSON:</label>
+        <textarea rows="2" class="form-control font-mono" [(ngModel)]="testPayloadText"></textarea>
+      </div>
+
+      <div class="test-options">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="simulateError" />
+          <span class="check-text">Simular error en el consumidor (forzar NACK y desvío a DLQ)</span>
+        </label>
+        <button class="btn btn-primary btn-sm" (click)="sendTest()">Publicar Mensaje a RabbitMQ</button>
+      </div>
+
+      <div class="alert-result" *ngIf="testResult" [class.alert-success]="!simulateError" [class.alert-warning]="simulateError">
+        {{ testResult }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Listado de Colas en Tiempo Real -->
+  <div class="card">
+    <div class="card-header-flex">
+      <h3>Colas Registradas en RabbitMQ</h3>
+      <button class="btn btn-secondary btn-sm" (click)="loadQueues()">Actualizar</button>
+    </div>
+
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre de la Cola</th>
+            <th>Tipo</th>
+            <th>Mensajes Pendientes</th>
+            <th>Consumidores Activos</th>
+            <th>Durabilidad</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let q of queues">
+            <td>
+              <strong class="queue-name">{{ q.name }}</strong>
+            </td>
+            <td>
+              <span class="badge" [ngClass]="q.isDlq ? 'badge-dlq' : 'badge-main'">
+                {{ q.isDlq ? 'Dead Letter Queue (DLQ)' : 'Cola Principal' }}
+              </span>
+            </td>
+            <td>
+              <span class="msg-counter" [class.has-messages]="q.messageCount > 0">{{ q.messageCount }}</span>
+            </td>
+            <td>
+              <span class="badge badge-success">{{ q.consumerCount }} consumidor(es)</span>
+            </td>
+            <td>{{ q.durable ? 'Durable' : 'Transitoria' }}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn btn-secondary btn-xs" (click)="purgeQueue(q)">Purgar</button>
+                <button class="btn btn-danger btn-xs" (click)="deleteQueue(q)">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear Cola Dinámica -->
+<div class="modal-overlay" *ngIf="showCreateModal">
+  <div class="modal-content">
+    <h3>Crear Nueva Cola en RabbitMQ</h3>
+    <p class="modal-sub">Definición de colas validadas mediante DTO en el microservicio administrador.</p>
+
+    <div class="alert-error" *ngIf="createError">
+      {{ createError }}
+    </div>
+
+    <div class="form-group">
+      <label>Nombre de la Cola (min 3 caracteres):</label>
+      <input type="text" class="form-control" [(ngModel)]="newQueue.name" placeholder="Ej: q.cmd.pagos" />
+    </div>
+
+    <div class="form-group">
+      <label>Dead Letter Exchange (DLX opcional):</label>
+      <input type="text" class="form-control" [(ngModel)]="newQueue.deadLetterExchange" placeholder="cmd.dead.dlx" />
+    </div>
+
+    <div class="form-group">
+      <label>Dead Letter Routing Key (opcional):</label>
+      <input type="text" class="form-control" [(ngModel)]="newQueue.deadLetterRoutingKey" placeholder="pagos.dead" />
+    </div>
+
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="newQueue.durable" />
+        <span>Cola Durable (Persistente a reinicios de RabbitMQ)</span>
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" (click)="showCreateModal = false">Cancelar</button>
+      <button class="btn btn-primary" (click)="submitCreateQueue()">Crear Cola</button>
+    </div>
+  </div>
+</div>

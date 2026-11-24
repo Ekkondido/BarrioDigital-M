@@ -1,0 +1,121 @@
+<div class="container" *ngIf="currentUser$ | async as user">
+  <div class="welcome-banner">
+    <div>
+      <h2>Bienvenido(a), {{ user.name }}</h2>
+      <p class="role-desc-text">
+        <span *ngIf="authService.hasRole('Admin')">Panel de Administración: Monitoreo integral de KPIs comunales y catálogo de servicios.</span>
+        <span *ngIf="authService.hasRole('Funcionario')">Panel de Operaciones: Gestión de solicitudes, admisión de cupos y despacho de cuadrillas.</span>
+        <span *ngIf="authService.hasRole('Vecino')">Portal Vecinal: Sigue en tiempo real tus trámites comunales y solicita nuevas atenciones.</span>
+        <span *ngIf="authService.hasRole('Auditor')">Panel de Auditoría: Consulta la trazabilidad inmutable y el timeline de eventos de cada trámite.</span>
+      </p>
+    </div>
+    <div class="banner-actions">
+      <a routerLink="/requests" class="btn btn-primary">
+        <span>📋</span> Ver Todos los Trámites
+      </a>
+      <a *ngIf="authService.hasRole('Admin')" routerLink="/reports" class="btn btn-secondary">
+        <span>📊</span> Ver Reportes
+      </a>
+    </div>
+  </div>
+
+  <!-- Tarjetas KPI Principales -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon icon-blue">📥</div>
+      <div class="stat-info">
+        <span class="stat-title">Ingresados (Por admitir)</span>
+        <span class="stat-value">{{ getPendingAdmissionCount() }}</span>
+        <span class="stat-hint">Pendientes de cupo diario</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon icon-orange">🚜</div>
+      <div class="stat-info">
+        <span class="stat-title">En Terreno</span>
+        <span class="stat-value">{{ getOnFieldCount() }}</span>
+        <span class="stat-hint">Cuadrillas operando</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon icon-green">✅</div>
+      <div class="stat-info">
+        <span class="stat-title">Resueltos</span>
+        <span class="stat-value">{{ getResolvedCount() }}</span>
+        <span class="stat-hint">Con certificado emitido</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon icon-purple">⏱️</div>
+      <div class="stat-info">
+        <span class="stat-title">Tiempo Promedio</span>
+        <span class="stat-value">{{ kpis?.averageResolutionHours || 28.5 }}h</span>
+        <span class="stat-hint">Resolución comunal</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista Segun Rol -->
+  <div class="content-grid">
+    <!-- Columna Izquierda: Ultimos Tramites -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Últimas Solicitudes Registradas</h3>
+        <a routerLink="/requests" class="link-more">Ver todas &rarr;</a>
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Tracking</th>
+              <th>Trámite</th>
+              <th>Vecino</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let req of requests.slice(0, 5)">
+              <td><strong>{{ req.trackingNumber }}</strong></td>
+              <td>{{ req.procedureName }}</td>
+              <td>{{ req.citizenName }}</td>
+              <td>
+                <span class="badge" [ngClass]="'badge-' + req.status.toLowerCase().replace('_', '-')">
+                  {{ req.status }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Columna Derecha: Resumen de Cupos o Acciones -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Cupos Diarios Disponibles</h3>
+        <a *ngIf="authService.hasAnyRole(['Admin', 'Funcionario'])" routerLink="/catalog" class="link-more">Administrar &rarr;</a>
+      </div>
+      <div class="quota-list">
+        <div class="quota-item" *ngFor="let proc of procedures.slice(0, 5)">
+          <div class="quota-meta">
+            <span class="proc-name">{{ proc.name }}</span>
+            <span class="proc-count">{{ proc.availableQuota }} de {{ proc.dailyQuota }} cupos</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" 
+                 [style.width.%]="(proc.availableQuota / proc.dailyQuota) * 100"
+                 [ngClass]="{
+                   'bar-low': (proc.availableQuota / proc.dailyQuota) < 0.3,
+                   'bar-medium': (proc.availableQuota / proc.dailyQuota) >= 0.3 && (proc.availableQuota / proc.dailyQuota) < 0.7,
+                   'bar-good': (proc.availableQuota / proc.dailyQuota) >= 0.7
+                 }">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

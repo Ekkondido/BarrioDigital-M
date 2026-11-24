@@ -1,0 +1,179 @@
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2>Gestión de Solicitudes y Trámites</h2>
+      <p class="subtitle">Flujo comunal unificado: Ingresado &rarr; Admitido &rarr; En Gestión &rarr; En Terreno &rarr; Resuelto</p>
+    </div>
+    <div>
+      <button class="btn btn-primary" (click)="openCreateModal()" 
+              *ngIf="authService.hasAnyRole(['Admin', 'Funcionario', 'Vecino'])">
+        <span>➕</span> Ingresar Nueva Solicitud
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros -->
+  <div class="card filter-card">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Estado:</label>
+        <select class="form-control" [(ngModel)]="selectedStatusFilter" (change)="applyFilter()">
+          <option value="ALL">Todos los Estados</option>
+          <option value="INGRESADO">Ingresado (Por admitir)</option>
+          <option value="ADMITIDO">Admitido (Cupo descontado)</option>
+          <option value="EN_GESTION">En Gestión</option>
+          <option value="EN_TERRENO">En Terreno (Cuadrilla asignada)</option>
+          <option value="RESUELTO">Resuelto</option>
+          <option value="RECHAZADO">Rechazado</option>
+        </select>
+      </div>
+
+      <div class="filter-group search-group">
+        <label>Buscar trámite o vecino:</label>
+        <input type="text" class="form-control" placeholder="Buscar por código, nombre o dirección..." 
+               [(ngModel)]="searchTerm" (input)="applyFilter()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de Solicitudes -->
+  <div class="card">
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Tracking</th>
+            <th>Tipo de Trámite</th>
+            <th>Vecino</th>
+            <th>Dirección</th>
+            <th>Estado</th>
+            <th>Cuadrilla</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let req of filteredRequests">
+            <td><strong class="tracking-code">{{ req.trackingNumber }}</strong></td>
+            <td>{{ req.procedureName }}</td>
+            <td>
+              <div>{{ req.citizenName }}</div>
+              <small class="text-muted">{{ req.citizenEmail }}</small>
+            </td>
+            <td>{{ req.address }}</td>
+            <td>
+              <span class="badge" [ngClass]="'badge-' + req.status.toLowerCase().replace('_', '-')">
+                {{ req.status }}
+              </span>
+            </td>
+            <td>{{ req.assignedCrew || '-' }}</td>
+            <td>{{ req.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm" 
+                      *ngIf="authService.hasAnyRole(['Admin', 'Funcionario'])"
+                      (click)="openStatusModal(req)">
+                Cambiar Estado
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredRequests.length === 0">
+            <td colspan="8" class="text-center py-4">No se encontraron solicitudes con los filtros aplicados.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ingresar Nueva Solicitud -->
+<div class="modal-overlay" *ngIf="showCreateModal">
+  <div class="modal-content">
+    <h3>Ingresar Nueva Solicitud Comunal</h3>
+    <p class="modal-sub">Completa los datos del requerimiento para coordinar la atención.</p>
+
+    <div class="form-group">
+      <label>Tipo de Trámite:</label>
+      <select class="form-control" [ngModel]="newRequest.procedureId" (ngModelChange)="onProcedureSelect($event)">
+        <option *ngFor="let p of procedures" [value]="p.id">
+          {{ p.name }} (Cupos disponibles hoy: {{ p.availableQuota }})
+        </option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Nombre del Solicitante:</label>
+      <input type="text" class="form-control" [(ngModel)]="newRequest.citizenName" placeholder="Tu nombre completo" />
+    </div>
+
+    <div class="form-group">
+      <label>Correo Electrónico (Para notificaciones):</label>
+      <input type="email" class="form-control" [(ngModel)]="newRequest.citizenEmail" placeholder="correo@ejemplo.cl" />
+    </div>
+
+    <div class="form-group">
+      <label>Teléfono de Contacto:</label>
+      <input type="text" class="form-control" [(ngModel)]="newRequest.citizenPhone" placeholder="+56 9 1234 5678" />
+    </div>
+
+    <div class="form-group">
+      <label>Dirección exacta del requerimiento:</label>
+      <input type="text" class="form-control" [(ngModel)]="newRequest.address" placeholder="Ej: Pasaje Los Cerezos 142, Esquina Av. Central" />
+    </div>
+
+    <div class="form-group">
+      <label>Detalle y Descripción:</label>
+      <textarea rows="3" class="form-control" [(ngModel)]="newRequest.description" 
+                placeholder="Describe el problema o necesidad en detalle..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" (click)="showCreateModal = false">Cancelar</button>
+      <button class="btn btn-primary" (click)="submitCreate()">Ingresar Trámite</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Cambiar Estado -->
+<div class="modal-overlay" *ngIf="showStatusModal && selectedRequest">
+  <div class="modal-content">
+    <h3>Actualizar Estado de Trámite</h3>
+    <p class="modal-sub">
+      Trámite: <strong>{{ selectedRequest.trackingNumber }}</strong> | Estado actual: 
+      <span class="badge" [ngClass]="'badge-' + selectedRequest.status.toLowerCase().replace('_', '-')">
+        {{ selectedRequest.status }}
+      </span>
+    </p>
+
+    <div class="alert-error" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <div class="form-group">
+      <label>Nuevo Estado:</label>
+      <select class="form-control" [(ngModel)]="statusPayload.status">
+        <option value="ADMITIDO">ADMITIDO (Disminuye cupo diario)</option>
+        <option value="EN_GESTION">EN_GESTION (Coordinando visita)</option>
+        <option value="EN_TERRENO">EN_TERRENO (Despacho de cuadrilla)</option>
+        <option value="RESUELTO">RESUELTO (Emite certificado final)</option>
+        <option value="RECHAZADO">RECHAZADO</option>
+      </select>
+    </div>
+
+    <div class="form-group" *ngIf="statusPayload.status === 'EN_TERRENO'">
+      <label>Cuadrilla Asignada en Terreno:</label>
+      <input type="text" class="form-control" [(ngModel)]="statusPayload.assignedCrew" 
+             placeholder="Ej: Cuadrilla Eléctrica #3 / Brigada de Podas" />
+    </div>
+
+    <div class="form-group" *ngIf="statusPayload.status === 'RESUELTO' || statusPayload.status === 'RECHAZADO'">
+      <label>Notas de Resolución / Observaciones:</label>
+      <textarea rows="2" class="form-control" [(ngModel)]="statusPayload.resolutionNotes"
+                placeholder="Detalle de trabajos realizados o motivo de rechazo..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" (click)="showStatusModal = false">Cancelar</button>
+      <button class="btn btn-success" (click)="submitStatusChange()">Confirmar Cambio de Estado</button>
+    </div>
+  </div>
+</div>

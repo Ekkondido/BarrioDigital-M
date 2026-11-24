@@ -1,0 +1,218 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'BarrioDigital - Infraestructura EC2 (ec2-apps, ec2-mq, ec2-kafka) con Security Groups restringidos'
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: 'Nombre de la llave SSH existente en AWS EC2 para acceso administrativo'
+    Default: 'barriodigital-key'
+
+  AdminIpRange:
+    Type: String
+    Description: 'IP del administrador/docente con máscara /32 para SSH y paneles de gestión'
+    Default: '0.0.0.0/0'
+
+  InstanceType:
+    Type: String
+    Description: 'Tipo de instancia EC2'
+    Default: 't3.medium'
+
+Resources:
+  # ================= VPC Y RED =================
+  BarrioDigitalVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: 'BarrioDigital-VPC'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref BarrioDigitalVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BarrioDigitalVPC
+      CidrBlock: '10.0.1.0/24'
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: 'BarrioDigital-Public-Subnet'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref BarrioDigitalVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # ================= SECURITY GROUPS (LEAST PRIVILEGE) =================
+  # 1. SG para ec2-apps (BFF, Microservicios, Frontend)
+  SecurityGroupApps:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Security Group para ec2-apps (BFF en 8080, Web en 80, SSH en 22)'
+      VpcId: !Ref BarrioDigitalVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminIpRange
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0 # Entrada desde AWS API Gateway
+      Tags:
+        - Key: Name
+          Value: 'sg-barriodigital-apps'
+
+  # 2. SG para ec2-mq (RabbitMQ AMQP 5672 restringido a apps, Management UI 15672 para admin)
+  SecurityGroupMq:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Security Group para ec2-mq: AMQP 5672 restringido a apps'
+      VpcId: !Ref BarrioDigitalVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminIpRange
+        - IpProtocol: tcp
+          FromPort: 5672
+          ToPort: 5672
+          SourceSecurityGroupId: !Ref SecurityGroupApps # Solo ec2-apps puede enviar mensajes
+        - IpProtocol: tcp
+          FromPort: 15672
+          ToPort: 15672
+          CidrIp: !Ref AdminIpRange # Solo Admin accede a la consola de RabbitMQ
+      Tags:
+        - Key: Name
+          Value: 'sg-barriodigital-mq'
+
+  # 3. SG para ec2-kafka (Kafka 9092 restringido a apps, Kafka UI 8090 para admin)
+  SecurityGroupKafka:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Security Group para ec2-kafka: Kafka 9092 restringido a apps'
+      VpcId: !Ref BarrioDigitalVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminIpRange
+        - IpProtocol: tcp
+          FromPort: 9092
+          ToPort: 9092
+          SourceSecurityGroupId: !Ref SecurityGroupApps # Solo ec2-apps puede publicar/consumir
+        - IpProtocol: tcp
+          FromPort: 8090
+          ToPort: 8090
+          CidrIp: !Ref AdminIpRange # Solo Admin accede a Kafka UI
+      Tags:
+        - Key: Name
+          Value: 'sg-barriodigital-kafka'
+
+  # ================= INSTANCIAS EC2 =================
+  Ec2Apps:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref SecurityGroupApps
+      ImageId: 'ami-0c101f26f147fa7fd' # Amazon Linux 2023 (us-east-1)
+      Tags:
+        - Key: Name
+          Value: 'ec2-apps'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf update -y
+          dnf install -y docker git
+          systemctl enable docker
+          systemctl start docker
+          usermod -aG docker ec2-user
+          curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+
+  Ec2Mq:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: 't3.small'
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref SecurityGroupMq
+      ImageId: 'ami-0c101f26f147fa7fd'
+      Tags:
+        - Key: Name
+          Value: 'ec2-mq'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf update -y
+          dnf install -y docker git
+          systemctl enable docker
+          systemctl start docker
+          curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+
+  Ec2Kafka:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref SecurityGroupKafka
+      ImageId: 'ami-0c101f26f147fa7fd'
+      Tags:
+        - Key: Name
+          Value: 'ec2-kafka'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf update -y
+          dnf install -y docker git
+          systemctl enable docker
+          systemctl start docker
+          curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+
+Outputs:
+  Ec2AppsPublicIp:
+    Description: 'IP Pública de ec2-apps (BFF y Frontend)'
+    Value: !GetAtt Ec2Apps.PublicIp
+  Ec2MqPrivateIp:
+    Description: 'IP Privada de ec2-mq (RabbitMQ)'
+    Value: !GetAtt Ec2Mq.PrivateIp
+  Ec2KafkaPrivateIp:
+    Description: 'IP Privada de ec2-kafka (Kafka Brokers)'
+    Value: !GetAtt Ec2Kafka.PrivateIp

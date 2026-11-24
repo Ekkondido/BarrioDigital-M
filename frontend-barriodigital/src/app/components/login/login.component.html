@@ -1,0 +1,61 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="logo-circle">🏛️</div>
+      <h1>BarrioDigital</h1>
+      <p class="subtitle">Plataforma Comunal de Atención Vecinal y Gestión de Trámites</p>
+    </div>
+
+    <div class="login-body">
+      <!-- Boton oficial MSAL Azure AD -->
+      <button class="btn-microsoft" (click)="onMicrosoftLogin()" [disabled]="isAuthenticating$ | async">
+        <svg class="ms-logo" viewBox="0 0 21 21">
+          <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+          <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+          <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+          <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+        </svg>
+        <span>{{ (isAuthenticating$ | async) ? 'Autenticando en Azure...' : 'Iniciar sesión con Microsoft' }}</span>
+      </button>
+
+      <div class="divider">
+        <span>o ingresar con perfil de evaluación</span>
+      </div>
+
+      <div class="demo-grid">
+        <button class="demo-card admin" (click)="onDemoLogin('Admin')">
+          <div class="role-icon">👑</div>
+          <div class="role-title">Admin</div>
+          <div class="role-desc">Catálogo, cupos y KPIs</div>
+        </button>
+
+        <button class="demo-card funcionario" (click)="onDemoLogin('Funcionario')">
+          <div class="role-icon">👷</div>
+          <div class="role-title">Funcionario</div>
+          <div class="role-desc">Admisión y cuadrillas</div>
+        </button>
+
+        <button class="demo-card vecino" (click)="onDemoLogin('Vecino')">
+          <div class="role-icon">🏡</div>
+          <div class="role-title">Vecino</div>
+          <div class="role-desc">Ingresar y seguir trámite</div>
+        </button>
+
+        <button class="demo-card auditor" (click)="onDemoLogin('Auditor')">
+          <div class="role-icon">🔍</div>
+          <div class="role-title">Auditor</div>
+          <div class="role-desc">Timeline y trazabilidad</div>
+        </button>
+      </div>
+
+      <div class="cloud-info-box">
+        <div class="info-title">🔐 Arquitectura Cloud & Seguridad (DSY1107)</div>
+        <ul>
+          <li><strong>IDaaS:</strong> Azure Entra ID (MSAL Angular v3 + PKCE).</li>
+          <li><strong>API Gateway:</strong> AWS HTTP API con JWT Authorizer.</li>
+          <li><strong>Backend:</strong> Spring Boot BFF validando issuer y roles de Azure AD.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

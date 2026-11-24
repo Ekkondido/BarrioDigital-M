@@ -1,0 +1,55 @@
+<nav class="navbar" *ngIf="currentUser$ | async as user">
+  <div class="nav-container">
+    <div class="nav-brand">
+      <a routerLink="/dashboard" class="brand-link">
+        <span class="brand-icon">🏛️</span>
+        <span class="brand-text"><strong>BarrioDigital</strong></span>
+        <span class="brand-sub">Comunal</span>
+      </a>
+    </div>
+
+    <div class="nav-links">
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">Dashboard</a>
+      <a routerLink="/requests" routerLinkActive="active" class="nav-item">Trámites</a>
+      
+      <a *ngIf="authService.hasAnyRole(['Admin', 'Funcionario'])" 
+         routerLink="/catalog" routerLinkActive="active" class="nav-item">Catálogo & Cupos</a>
+      
+      <a *ngIf="authService.hasRole('Admin')" 
+         routerLink="/reports" routerLinkActive="active" class="nav-item">Reportería</a>
+      
+      <a *ngIf="authService.hasAnyRole(['Admin', 'Auditor'])" 
+         routerLink="/audit" routerLinkActive="active" class="nav-item">Auditoría</a>
+
+      <a *ngIf="authService.hasRole('Admin')" 
+         routerLink="/admin/mq" routerLinkActive="active" class="nav-item">RabbitMQ</a>
+    </div>
+
+    <div class="nav-user-area">
+      <!-- Demo role switcher for testing -->
+      <div class="demo-selector">
+        <span class="demo-label">Rol Vista:</span>
+        <button class="role-btn" [class.selected]="authService.hasRole('Admin')" (click)="setDemoRole('Admin')">Admin</button>
+        <button class="role-btn" [class.selected]="authService.hasRole('Funcionario')" (click)="setDemoRole('Funcionario')">Funcionario</button>
+        <button class="role-btn" [class.selected]="authService.hasRole('Vecino')" (click)="setDemoRole('Vecino')">Vecino</button>
+        <button class="role-btn" [class.selected]="authService.hasRole('Auditor')" (click)="setDemoRole('Auditor')">Auditor</button>
+      </div>
+
+      <div class="user-info">
+        <div class="user-name">{{ user.name }}</div>
+        <div class="user-role-badge">
+          <span class="badge" [ngClass]="{
+            'badge-admin': user.roles.includes('Admin'),
+            'badge-funcionario': user.roles.includes('Funcionario'),
+            'badge-vecino': user.roles.includes('Vecino'),
+            'badge-auditor': user.roles.includes('Auditor')
+          }">{{ user.roles.join(', ') }}</span>
+        </div>
+      </div>
+
+      <button (click)="onLogout()" class="btn btn-secondary btn-sm" title="Cerrar sesión">
+        Salir
+      </button>
+    </div>
+  </div>
+</nav>

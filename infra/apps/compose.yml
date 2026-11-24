@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # ================= BFF GATEWAY =================
+  bff-svc:
+    build:
+      context: ../../ms-barriodigital-bff
+      dockerfile: Dockerfile
+    container_name: bff-svc
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-common}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-barriodigital-backend}
+      AZURE_AUDIENCE: ${AZURE_AUDIENCE:-api://barriodigital-backend}
+      REQUESTS_SERVICE_URL: http://requests-svc:8081
+      CATALOG_SERVICE_URL: http://catalog-svc:8082
+      REPORT_SERVICE_URL: http://report-svc:8084
+      AUDIT_SERVICE_URL: http://audit-svc:8085
+      ADMIN_MQ_SERVICE_URL: http://admin-mq-svc:8086
+      MOCK_JWT_ENABLED: ${MOCK_JWT_ENABLED:-false}
+    networks:
+      - barriodigital-net
+
+  # ================= SERVICIO DE TRÁMITES (CORE) =================
+  requests-svc:
+    build:
+      context: ../../ms-barriodigital-requests
+      dockerfile: Dockerfile
+    container_name: requests-svc
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: 8081
+      CATALOG_SERVICE_URL: http://catalog-svc:8082
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq1}
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:29092,kafka2:29093,kafka3:29094}
+    networks:
+      - barriodigital-net
+
+  # ================= SERVICIO DE CATÁLOGO Y CUPOS =================
+  catalog-svc:
+    build:
+      context: ../../ms-barriodigital-catalog
+      dockerfile: Dockerfile
+    container_name: catalog-svc
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: 8082
+    networks:
+      - barriodigital-net
+
+  # ================= SERVICIO DE NOTIFICACIONES (CONSUMIDOR RABBITMQ) =================
+  notify-svc:
+    build:
+      context: ../../ms-barriodigital-notify
+      dockerfile: Dockerfile
+    container_name: notify-svc
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: 8083
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq1}
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - barriodigital-net
+
+  # ================= SERVICIO DE REPORTERÍA (CONSUMIDOR KAFKA) =================
+  report-svc:
+    build:
+      context: ../../ms-barriodigital-report
+      dockerfile: Dockerfile
+    container_name: report-svc
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      PORT: 8084
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:29092,kafka2:29093,kafka3:29094}
+    networks:
+      - barriodigital-net
+
+  # ================= SERVICIO DE AUDITORÍA (CONSUMIDOR KAFKA) =================
+  audit-svc:
+    build:
+      context: ../../ms-barriodigital-audit
+      dockerfile: Dockerfile
+    container_name: audit-svc
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      PORT: 8085
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:29092,kafka2:29093,kafka3:29094}
+    networks:
+      - barriodigital-net
+
+  # ================= MICROSERVICIO ADMINISTRADOR RABBITMQ (EVALUACIÓN 3) =================
+  admin-mq-svc:
+    build:
+      context: ../../ms-barriodigital-admin-mq
+      dockerfile: Dockerfile
+    container_name: admin-mq-svc
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      PORT: 8086
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq1}
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - barriodigital-net
+
+  # ================= FRONTEND ANGULAR =================
+  frontend-svc:
+    build:
+      context: ../../frontend-barriodigital
+      dockerfile: Dockerfile
+    container_name: frontend-svc
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - barriodigital-net
+
+networks:
+  barriodigital-net:
+    name: barriodigital-net
+    driver: bridge

@@ -1,0 +1,49 @@
+server:
+  port: ${PORT:8086}
+
+spring:
+  application:
+    name: ms-barriodigital-admin-mq
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+
+# Nombres centralizados de colas, exchanges y DLQ del ecosistema BarrioDigital
+barriodigital:
+  rabbitmq:
+    exchanges:
+      direct: cmd.direct
+      topic: cmd.topic
+      dlx: cmd.dead.dlx
+    queues:
+      email:
+        name: q.cmd.email
+        dlq: q.cmd.email.dlq
+        routing-key-direct: email.send
+        routing-key-topic: "email.*"
+        routing-key-dlq: email.dead
+      crew:
+        name: q.cmd.crew
+        dlq: q.cmd.crew.dlq
+        routing-key-direct: crew.ticket
+        routing-key-topic: "crew.#"
+        routing-key-dlq: crew.dead
+      certificate:
+        name: q.cmd.certificate
+        dlq: q.cmd.certificate.dlq
+        routing-key-direct: certificate.gen
+        routing-key-topic: "certificate.*"
+        routing-key-dlq: certificate.dead
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

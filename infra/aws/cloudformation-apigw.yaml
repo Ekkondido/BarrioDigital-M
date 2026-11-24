@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'BarrioDigital - AWS API Gateway (HTTP API) con JWT Authorizer integrado a Azure AD (Microsoft Entra ID)'
+
+Parameters:
+  AzureTenantId:
+    Type: String
+    Description: 'ID del Tenant de Azure AD (Directorio de Entra ID)'
+    Default: 'common'
+
+  AzureApiClientId:
+    Type: String
+    Description: 'Client ID del Backend registrado en Azure AD'
+    Default: '00000000-0000-0000-0000-000000000000'
+
+  BackendBffUrl:
+    Type: String
+    Description: 'URL pública o privada del BFF Spring Boot en EC2 (ej: http://ec2-xx-xx-xx-xx.compute-1.amazonaws.com:8080)'
+    Default: 'http://localhost:8080'
+
+Resources:
+  # ================= HTTP API GATEWAY =================
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: 'BarrioDigital-ApiGateway'
+      ProtocolType: 'HTTP'
+      Description: 'API Gateway HTTP para BarrioDigital con autenticacion IDaaS Azure AD'
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - 'GET'
+          - 'POST'
+          - 'PUT'
+          - 'DELETE'
+          - 'OPTIONS'
+        AllowHeaders:
+          - 'Authorization'
+          - 'Content-Type'
+          - 'X-User-Email'
+          - 'X-User-Name'
+          - 'X-Actor-Email'
+        MaxAge: 3600
+
+  # ================= JWT AUTHORIZER CONECTADO A AZURE AD =================
+  AzureJwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      AuthorizerType: 'JWT'
+      IdentitySource:
+        - '$request.header.Authorization'
+      Name: 'AzureAD-JWT-Authorizer'
+      JwtConfiguration:
+        Audience:
+          - !Sub 'api://${AzureApiClientId}'
+          - !Ref AzureApiClientId
+        Issuer: !Sub 'https://login.microsoftonline.com/${AzureTenantId}/v2.0'
+
+  # ================= INTEGRACION CON BACKEND BFF EN EC2 =================
+  BackendIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: 'HTTP_PROXY'
+      IntegrationMethod: 'ANY'
+      IntegrationUri: !Sub '${BackendBffUrl}/{proxy}'
+      PayloadFormatVersion: '1.0'
+
+  # ================= RUTAS PROTEGIDAS CON AZURE JWT =================
+  DefaultProxyRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'ANY /api/{proxy+}'
+      AuthorizationType: 'JWT'
+      AuthorizerId: !Ref AzureJwtAuthorizer
+      Target: !Sub 'integrations/${BackendIntegration}'
+
+  OptionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'OPTIONS /{proxy+}'
+      AuthorizationType: 'NONE'
+      Target: !Sub 'integrations/${BackendIntegration}'
+
+  # ================= STAGE DEFAULT CON AUTO-DEPLOY =================
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: '$default'
+      AutoDeploy: true
+
+Outputs:
+  ApiGatewayEndpoint:
+    Description: 'URL base del API Gateway en AWS para consumir desde Angular'
+    Value: !GetAtt HttpApi.ApiEndpoint
+  AuthorizerId:
+    Description: 'ID del JWT Authorizer de Azure AD configurado'
+    Value: !Ref AzureJwtAuthorizer

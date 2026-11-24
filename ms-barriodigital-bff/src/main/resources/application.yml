@@ -1,0 +1,45 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: ms-barriodigital-bff
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AZURE_ISSUER_URI:https://login.microsoftonline.com/9544c211-793b-440b-98a8-cc363e1a04cb/v2.0}
+          jwk-set-uri: ${AZURE_JWK_SET_URI:https://login.microsoftonline.com/9544c211-793b-440b-98a8-cc363e1a04cb/discovery/v2.0/keys}
+
+azure:
+  ad:
+    tenant-id: ${AZURE_TENANT_ID:9544c211-793b-440b-98a8-cc363e1a04cb}
+    client-id: ${AZURE_CLIENT_ID:3c53448e-df26-462e-912f-f8acda44d1a4}
+    audience: ${AZURE_AUDIENCE:api://3c53448e-df26-462e-912f-f8acda44d1a4/access_as_user}
+
+# Downstream Microservices URLs
+services:
+  requests:
+    url: ${REQUESTS_SERVICE_URL:http://localhost:8081}
+  catalog:
+    url: ${CATALOG_SERVICE_URL:http://localhost:8082}
+  report:
+    url: ${REPORT_SERVICE_URL:http://localhost:8084}
+  audit:
+    url: ${AUDIT_SERVICE_URL:http://localhost:8085}
+  admin-mq:
+    url: ${ADMIN_MQ_SERVICE_URL:http://localhost:8086}
+
+# Flag para permitir pruebas locales con tokens simulados cuando no haya internet o tenant activo
+security:
+  mock-jwt-enabled: ${MOCK_JWT_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

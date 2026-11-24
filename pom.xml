@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>cl.duoc.barriodigital</groupId>
+    <artifactId>barriodigital-parent</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>barriodigital-parent</name>
+    <description>Proyecto raiz para compilar todos los microservicios de BarrioDigital</description>
+
+    <modules>
+        <module>ms-barriodigital-bff</module>
+        <module>ms-barriodigital-catalog</module>
+        <module>ms-barriodigital-requests</module>
+        <module>ms-barriodigital-notify</module>
+        <module>ms-barriodigital-report</module>
+        <module>ms-barriodigital-audit</module>
+        <module>ms-barriodigital-admin-mq</module>
+    </modules>
+</project>

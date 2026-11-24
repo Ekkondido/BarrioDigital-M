@@ -1,0 +1,77 @@
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2>Panel de Reportería y Analítica Comunal</h2>
+      <p class="subtitle">Métricas agregadas en tiempo real mediante Apache Kafka sin impacto en la base transaccional.</p>
+    </div>
+    <div class="range-selector">
+      <button class="btn btn-sm" [class.btn-primary]="selectedRange === 'last24h'" [class.btn-secondary]="selectedRange !== 'last24h'" (click)="onRangeChange('last24h')">Últimas 24h</button>
+      <button class="btn btn-sm" [class.btn-primary]="selectedRange === 'last7d'" [class.btn-secondary]="selectedRange !== 'last7d'" (click)="onRangeChange('last7d')">Últimos 7 días</button>
+      <button class="btn btn-sm" [class.btn-primary]="selectedRange === 'last30d'" [class.btn-secondary]="selectedRange !== 'last30d'" (click)="onRangeChange('last30d')">Últimos 30 días</button>
+    </div>
+  </div>
+
+  <!-- Tarjetas Resumen -->
+  <div class="stats-grid" *ngIf="kpis">
+    <div class="stat-card">
+      <span class="stat-label">Solicitudes Activas</span>
+      <span class="stat-number text-blue">{{ kpis.activeRequestsTotal }}</span>
+      <span class="stat-sub">En proceso de atención</span>
+    </div>
+
+    <div class="stat-card">
+      <span class="stat-label">Tiempo Promedio Resolución</span>
+      <span class="stat-number text-purple">{{ kpis.averageResolutionHours }} hrs</span>
+      <span class="stat-sub">Desde ingreso a resolución</span>
+    </div>
+
+    <div class="stat-card">
+      <span class="stat-label">Trámites Resueltos</span>
+      <span class="stat-number text-green">{{ kpis.resolvedTotal }}</span>
+      <span class="stat-sub">Conforme por cuadrilla</span>
+    </div>
+
+    <div class="stat-card">
+      <span class="stat-label">Trámites Rechazados</span>
+      <span class="stat-number text-red">{{ kpis.rejectedTotal }}</span>
+      <span class="stat-sub">Por falta de requisitos</span>
+    </div>
+  </div>
+
+  <div class="charts-grid" *ngIf="kpis">
+    <!-- Trámites por Hora -->
+    <div class="card">
+      <h3 class="chart-title">Trámites Ingresados por Franja Horaria (Kafka Streaming)</h3>
+      <p class="chart-sub">Volumen de solicitudes recibidas en oficinas y portal digital.</p>
+      
+      <div class="bar-chart">
+        <div class="bar-column" *ngFor="let hour of getHourlyKeys()">
+          <div class="bar-value">{{ kpis.requestsPerHour[hour] }}</div>
+          <div class="bar-track">
+            <div class="bar-fill" [style.height.%]="(kpis.requestsPerHour[hour] / getMaxHourlyCount()) * 100"></div>
+          </div>
+          <div class="bar-label">{{ hour }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tipos más demandados -->
+    <div class="card">
+      <h3 class="chart-title">Top Procedimientos Más Demandados</h3>
+      <p class="chart-sub">Distribución porcentual de solicitudes comunales.</p>
+
+      <div class="ranking-list">
+        <div class="ranking-item" *ngFor="let item of topProcedures; let i = index">
+          <div class="ranking-meta">
+            <span class="ranking-rank">#{{ i + 1 }}</span>
+            <span class="ranking-name">{{ item.procedureName }}</span>
+            <span class="ranking-count">{{ item.count }} reqs ({{ item.percentage }}%)</span>
+          </div>
+          <div class="ranking-bar-bg">
+            <div class="ranking-bar-fill" [style.width.%]="item.percentage"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,93 @@
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h2>Auditoría Comunal & Timeline Inmutable</h2>
+      <p class="subtitle">Trazabilidad completa alimentada por Apache Kafka (tópico audit.timeline). Quién / Qué / Cuándo / Desde dónde.</p>
+    </div>
+  </div>
+
+  <div class="card filter-card">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Buscar por Trámite (ID / Tracking):</label>
+        <input type="text" class="form-control" placeholder="Ej: REQ-2026-0001" 
+               [(ngModel)]="filterRequestId" (input)="applyFilter()" />
+      </div>
+
+      <div class="filter-group">
+        <label>Buscar por Actor / Funcionario / Vecino:</label>
+        <input type="text" class="form-control" placeholder="Ej: mariana.funcionario@..." 
+               [(ngModel)]="filterActor" (input)="applyFilter()" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha y Hora</th>
+            <th>Trámite</th>
+            <th>Acción / Evento</th>
+            <th>Actor Responsable</th>
+            <th>Transición Estado</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ev of filteredEvents">
+            <td>{{ ev.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+            <td><strong>{{ ev.trackingNumber }}</strong></td>
+            <td>
+              <span class="badge" [ngClass]="{
+                'badge-ingresado': ev.action === 'INGRESADO',
+                'badge-admitido': ev.action === 'ADMITIDO',
+                'badge-en-terreno': ev.action === 'EN_TERRENO',
+                'badge-resuelto': ev.action === 'RESUELTO',
+                'badge-rechazado': ev.action === 'RECHAZADO'
+              }">{{ ev.action }}</span>
+            </td>
+            <td>{{ ev.actor }}</td>
+            <td>
+              <span *ngIf="ev.oldStatus">{{ ev.oldStatus }} &rarr; </span>
+              <strong>{{ ev.newStatus }}</strong>
+            </td>
+            <td>
+              <button class="btn btn-secondary btn-sm" (click)="openDetail(ev)">
+                Ver JSON Kafka
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredEvents.length === 0">
+            <td colspan="6" class="text-center py-4">No se encontraron eventos de auditoría con los filtros seleccionados.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Evento Kafka -->
+<div class="modal-overlay" *ngIf="showDetailModal && selectedEvent">
+  <div class="modal-content modal-lg">
+    <h3>Trazabilidad de Auditoría (Evento Kafka)</h3>
+    <p class="modal-sub">Identificador de evento: <code>{{ selectedEvent.eventId }}</code></p>
+
+    <div class="info-grid">
+      <div><strong>Trámite:</strong> {{ selectedEvent.trackingNumber }}</div>
+      <div><strong>Actor:</strong> {{ selectedEvent.actor }}</div>
+      <div><strong>Acción:</strong> {{ selectedEvent.action }}</div>
+      <div><strong>Fecha / Hora:</strong> {{ selectedEvent.timestamp | date:'medium' }}</div>
+    </div>
+
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Payload Crudo Consumido desde Kafka:</label>
+      <pre class="json-viewer">{{ selectedEvent.detailsJson }}</pre>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" (click)="showDetailModal = false">Cerrar</button>
+    </div>
+  </div>
+</div>

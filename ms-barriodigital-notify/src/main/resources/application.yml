@@ -1,0 +1,25 @@
+server:
+  port: ${PORT:8083}
+
+spring:
+  application:
+    name: ms-barriodigital-notify
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2000ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
